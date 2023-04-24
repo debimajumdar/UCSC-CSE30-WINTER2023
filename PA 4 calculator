@@ -1,0 +1,440 @@
+calculator.py
+
+#Name - Debi Majumdar
+#Programming Assignment 4 - Calculator
+#Date - 5/3/23
+# calculator that will convert a command from infix to postfix
+
+
+from stack import Stack
+from tree import BinaryTree, ExpTree
+
+
+def infix_to_postfix(infix):
+    prec = {'+': 1, '-': 1, '*': 2, '/': 2, '^': 3}  # sets precedence for calculator operations
+    oper = set(['+', '-', '*', '/', '(', ')', '^'])  # characters that are operators in the inputted string
+    stack = []  # empty stack at first
+    infix.replace(" ", "")  # removes spaces
+    postfix = ''  # inital postfix
+    skip = None
+    enum = enumerate(infix)
+    for j, char in enum:
+        if not skip == None:
+            if skip > j:
+                continue
+        if char not in oper:  # if the inputted value from infix is not in the operator functions
+            numb, sval = numbers_in_infix(infix[
+                                          j:])  # puts numbers with multiple digits and/or decimals together so that they count as one value in calculate
+            skip = sval + j
+            postfix += numb + " "
+        elif char == '(':  # checks for left paranthese
+            stack.append('(')  # adds the paranthese to stack
+        elif char == ')':  # checks for right parathese
+            # adds to stack
+            while (stack and stack[-1] != '('):
+                postfix += stack.pop() + " "
+            stack.pop()
+        else:
+            while (stack and stack[-1] != '(') and (prec[char] <= prec[stack[-1]]):
+                postfix += stack.pop() + " "
+            stack.append(char)
+    while stack:
+        postfix += stack.pop() + " "
+    return postfix[:-1]
+
+
+def numbers_in_infix(init_infix):
+    numbers = []
+    for i in range(len(init_infix)):
+        if init_infix[i].isdigit() or init_infix[i] == ".":
+            numbers.append(init_infix[i])
+            continue
+        else:
+            break
+    nums = "".join(numbers)
+    lennums = len(numbers)
+    return nums, lennums
+
+
+def calculate(infix):  # calculate funtion
+
+    postfix = infix_to_postfix(infix).split()  # changes infix to postfix form and splits with the spaces
+    value = ExpTree.make_tree(postfix)  # makes a tree that to use for calculations
+    returnval = float(ExpTree.evaluate(value))  # calculates the value with the evaluate function from tree.py/ExpTree
+
+    return returnval
+
+
+# a driver to test calculate module
+if __name__ == '__main__':
+    # game code
+    print("Welcome to Calculator Program!")
+    while True:
+        inputvalue = input("Please enter your expression here. To quit enter 'quit' or 'q':\n")
+        if inputvalue.upper() == "Q" or inputvalue.upper() == "QUIT":
+            print("Goodbye!")
+            break
+        else:
+            print(calculate(inputvalue))
+
+    # test infix_to_postfix function
+    # print(infix_to_postfix('(5+2)*3'))
+    assert infix_to_postfix('(5+2)*3') == '5 2 + 3 *'
+    assert infix_to_postfix('5+2*3') == '5 2 3 * +'
+    # print('infix to postfix works properly')
+    # test calculate function
+    assert calculate('(5+2)*3') == 21.0
+    assert calculate('5+2*3') == 11.0
+    # print("calculate works properly")
+    # print(calculate('(5+2)*3'))
+    # print(calculate("50.2*10"))
+
+
+stack.py
+
+
+#Name - Debi Majumdar
+#Programming Assignment 4 - Calculator
+#Date - 5/3/23
+# Stack data type
+class Stack:
+    def __init__(self):
+        self.items = []
+
+    def isEmpty(self):
+        size = len(self.items)
+        return size == 0
+
+    def push(self, item):
+        self.items.append(item)
+
+    def pop(self):
+        if self.isEmpty():  # checks to see if self.items is empty
+            return None  # returns None if Empty
+        else:
+            return self.items.pop()  # otherwise adds to list
+
+    def peek(self):
+        if self.isEmpty():  # checks to see if self.items is empty then determining whether to return None or [-1] value of the self.items
+            returnval = None
+        else:
+            returnval = self.items[-1]
+        return returnval
+
+    def size(self):
+        size = len(self.items)  # gets the size of self.items
+        return size
+
+
+# a driver program for class Stack
+
+if __name__ == '__main__':
+
+    data_in = ['hello', 'how', 'are', 'you']
+    s = Stack()
+    for i in data_in:
+        s.push(i)
+
+    assert s.size() == len(data_in)
+    assert s.peek() == data_in[-1]
+
+    data_out = []
+    while not s.isEmpty():
+        data_out.append(s.pop())
+
+    assert data_out == data_in[::-1]
+    assert s.size() == 0
+    assert s.peek() == None
+    # print("all assertions work")
+
+
+tree.py
+
+#Name - Debi Majumdar
+#Programming Assignment 4 - Calculator
+#Date - 5/3/23
+# class for binary tree and an exptree
+
+from stack import Stack
+
+
+class BinaryTree:
+    def __init__(self, rootObj=None):
+        self.key = rootObj
+        self.leftChild = None
+        self.rightChild = None
+        if isinstance(self.key, BinaryTree):
+            self.setRootVal(rootObj.getRootVal())
+            self.leftChild = rootObj.getLeftChild()
+            self.rightChild = rootObj.getRightChild()
+
+    def insertLeft(self, newNode):
+        if self.leftChild == None:
+            self.leftChild = BinaryTree(newNode)
+        else:
+            t = BinaryTree(newNode)
+            t.leftChild = self.leftChild
+            self.leftChild = t
+
+    def insertRight(self, newNode):
+        if self.rightChild == None:
+            self.rightChild = BinaryTree(newNode)
+        else:
+            t = BinaryTree(newNode)
+            t.rightChild = self.rightChild
+            self.rightChild = t
+
+    def getRightChild(self):
+        return self.rightChild
+
+    def getLeftChild(self):
+        return self.leftChild
+
+    def setRootVal(self, obj):
+        self.key = obj
+
+    def getRootVal(self):
+        return self.key
+
+    def __str__(self):
+        s = f"{self.key}"
+        s += '('
+        if self.leftChild != None:
+            s += str(self.leftChild)
+        s += ')('
+        if self.rightChild != None:
+            s += str(self.rightChild)
+        s += ')'
+        return s
+
+
+class ExpTree(BinaryTree):
+
+    @staticmethod
+    def make_tree(postfix):
+        opStack = Stack()
+        opsp = opStack.pop
+        oper = "+-*/^()"
+        for value in postfix:
+            if value in oper:
+                ntree = ExpTree(value)
+                ntree.insertRight(opsp())
+                ntree.insertLeft(opsp())
+                opStack.push(ntree)
+            else:
+                opStack.push(value)
+        returnval = opsp()
+        return returnval
+
+    @staticmethod
+    def preorder(tree):
+        s = ''
+        if not tree == None:
+            s += tree.getRootVal()
+            s += ExpTree.preorder(tree.getLeftChild())
+            s += ExpTree.preorder(tree.getRightChild())
+            # print(s)
+        return s
+
+    @staticmethod
+    def inorder(tree):
+        s = ''
+        if not tree == None:
+
+            if not tree.getLeftChild() == None:
+                s += "("  # adds parathese to the beginning
+            lc = str(ExpTree.inorder(tree.getLeftChild()))  # reiterates .inorder  with leftchild places that into
+            rv = str(tree.getRootVal())
+            rc = str(ExpTree.inorder(tree.getRightChild()))
+            # print(lc, rv, rc) #for debugging
+            s += lc
+            s += rv
+            s += rc
+            if not tree.getLeftChild() == None:
+                s += ")"  # adds parathese to the end
+
+        return s
+
+    @staticmethod
+    def postorder(tree):
+        s = ''
+        if not tree == None:
+            s += ExpTree.postorder(tree.getLeftChild())
+            s += ExpTree.postorder(tree.getRightChild())
+            s += tree.getRootVal()
+
+        return s
+
+    @staticmethod
+    def evaluate(tree):
+        oper = ['+', '-', '*', '/', '(', ')', '^']  # operators
+        if not tree == None:
+            if tree.key in oper:  # checks if tree.key is in the operators
+                ExpTree.evaluate(tree.getLeftChild())
+                ExpTree.evaluate(tree.getRightChild())
+                flckey = float(tree.getLeftChild().key)
+                frckey = float(tree.getRightChild().key)
+                tree.key = ExpTree.doMath(tree.key, flckey, frckey)
+        tk = float(tree.key)  # float value of tree.key
+        return tk
+
+    def doMath(op, op1, op2):  # code from the textbook
+        if op == "*":
+            return op1 * op2
+        elif op == "/":
+            return op1 / op2
+        elif op == "+":
+            return op1 + op2
+        elif op == "^":
+            return op1 ** op2
+        else:
+            return op1 - op2
+
+    def __str__(self):
+        return ExpTree.inorder(self)  # uses inorder() to return str
+
+
+# a driver for testing BinaryTree and ExpTree
+if __name__ == '__main__':
+    # test a BinaryTree
+
+    r = BinaryTree('a')
+    assert r.getRootVal() == 'a'
+    assert r.getLeftChild() == None
+    assert r.getRightChild() == None
+    assert str(r) == 'a()()'
+
+    r.insertLeft('b')
+    assert r.getLeftChild().getRootVal() == 'b'
+    assert str(r) == 'a(b()())()'
+
+    r.insertRight('c')
+    assert r.getRightChild().getRootVal() == 'c'
+    assert str(r) == 'a(b()())(c()())'
+
+    r.getLeftChild().insertLeft('d')
+    r.getLeftChild().insertRight('e')
+    r.getRightChild().insertLeft('f')
+    assert str(r) == 'a(b(d()())(e()()))(c(f()())())'
+
+    assert str(r.getRightChild()) == 'c(f()())()'
+    assert r.getRightChild().getLeftChild().getRootVal() == 'f'
+
+    # print("binary tree works properly!")
+    # test an ExpTree
+
+    postfix = '5 2 3 * +'.split()
+    tree = ExpTree.make_tree(postfix)
+    assert str(tree) == '(5+(2*3))'
+    assert ExpTree.inorder(tree) == '(5+(2*3))'
+    assert ExpTree.postorder(tree) == '523*+'
+    assert ExpTree.preorder(tree) == '+5*23'
+    assert ExpTree.evaluate(tree) == 11.0
+
+    postfix = '5 2 + 3 *'.split()
+    tree = ExpTree.make_tree(postfix)
+    assert str(tree) == '((5+2)*3)'
+    assert ExpTree.inorder(tree) == '((5+2)*3)'
+    assert ExpTree.postorder(tree) == '52+3*'
+    assert ExpTree.preorder(tree) == '*+523'
+    assert ExpTree.evaluate(tree) == 21.0
+    # print("all asserations work!")
+
+
+calculatorGUI.py
+
+#Name - Debi Majumdar
+#Programming Assignment 4 - Calculator
+#Date - 5/3/23
+# creating GUI calculator using tkinter (extra credit)
+from tkinter import *
+import calculator as c
+
+def calculator(gui):
+    # name the gui window
+    gui.postfix = ""
+    gui.log = []
+    gui.len = 0
+    gui.title("Calculator")
+    # make a entry text box
+    entrybox = Entry(gui, width=36, borderwidth=5)
+    # position the entry text box in the gui window using the grid manager
+    entrybox.grid(row=0, column=0, columnspan=4, padx=10, pady=10)
+
+    # create buttons: 1,2,3,4,5,6,7,8,9,0,+,-,*,/,c,=
+    b0 = addButton(gui, entrybox, '0')
+    b1 = addButton(gui, entrybox, '1')
+    b2 = addButton(gui, entrybox, '2')
+    b3 = addButton(gui, entrybox, '3')
+    b4 = addButton(gui, entrybox, '4')
+    b5 = addButton(gui, entrybox, '5')
+    b6 = addButton(gui, entrybox, '6')
+    b7 = addButton(gui, entrybox, '7')
+    b8 = addButton(gui, entrybox, '8')
+    b9 = addButton(gui, entrybox, '9')
+    b_add = addButton(gui, entrybox, '+')
+    b_sub = addButton(gui, entrybox, '-')
+    b_mult = addButton(gui, entrybox, '*')
+    b_div = addButton(gui, entrybox, '/')
+    b_clr = addButton(gui, entrybox, 'c')
+    b_eq = addButton(gui, entrybox, '=')
+
+    # add buttons to the grid
+    buttons = [b7, b8, b9, b_clr,
+               b4, b5, b6, b_sub,
+               b1, b2, b3, b_add,
+               b_mult, b0, b_div, b_eq]
+    k = 4
+    for i in range(k):
+        for j in range(k):
+            buttons[i * k + j].grid(row=i + 1, column=j, columnspan=1)
+
+
+def addButton(gui, entrybox, value):
+    return Button(gui, text=value, height=4, width=9, command=lambda: clickButton(entrybox, value))
+
+
+
+def clickButton(entrybox, value):
+    # the function clickButton() is not implemented!!!
+
+    # if len(gui.log) > 2:
+    #     if gui.log[len(gui.log)-1] == "=":
+    #         gui.postfix = ""
+    #         gui.len = 0
+    #         entrybox.delete(0, gui.len)
+    if value == "c":
+        # for i in range(0, gui.len):
+        entrybox.delete(0, gui.len)
+        gui.len = 0
+        gui.postfix = ""
+    else:
+        gui.log.append(value)
+        entrybox.insert(gui.len, str(value))
+        gui.len += 1
+        if value != "=":
+            gui.postfix += value
+        elif value == "=":
+            entrybox.delete(0, gui.len)
+            answer = c.calculate(gui.postfix)
+            entrybox.insert(0, answer)
+            gui.postfix = str(answer)
+
+
+
+
+
+
+    print(value)  # for debugging
+    print(gui.postfix)
+    print(gui.log)
+    #calculator.calculate(gui.postfix)
+
+
+# main program
+# create the main window
+gui = Tk()
+# create the calculator layout
+calculator(gui)
+# update the window
+gui.mainloop()
