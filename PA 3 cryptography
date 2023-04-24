@@ -1,0 +1,486 @@
+steganography.py
+
+# Name- Debi Majumdar
+# Programming assignment 3
+# Date- 02/17/2023
+# steganography
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+from math import ceil
+from codec import Codec, CaesarCypher, HuffmanCodes
+
+
+class Steganography():
+
+    def __init__(self):
+        self.text = ''
+        self.binary = ''
+        self.delimiter = '#'
+        self.codec = None
+
+    def encode(self, filein, fileout, message, codec):
+        image = cv2.imread(filein)
+        # print(image) # for debugging
+
+        # calculate available bytes
+        max_bytes = image.shape[0] * image.shape[1] * 3 // 8
+        print("Maximum bytes available:", max_bytes)
+
+        # convert into binary
+        if codec == 'binary':
+            self.codec = Codec()
+        elif codec == 'caesar':
+            self.codec = CaesarCypher()
+        elif codec == 'huffman':
+            self.codec = HuffmanCodes()
+        binary = self.codec.encode(message + self.delimiter)
+
+        # check if possible to encode the message
+        num_bytes = ceil(len(binary) // 8) + 1
+        if num_bytes > max_bytes:
+            print("Error: Insufficient bytes!")
+        else:
+            print("Bytes to encode:", num_bytes)
+            self.text = message
+            self.binary = binary
+            # your code goes here
+            # you may create an additional method that modifies the image array
+            j = 0
+            k = 0
+            l = 0
+            # start func
+            lenbin = len(binary)
+            for m in range(lenbin):
+                cval = image[j, k, l]  # value ###
+                bval = int(binary[m])  # binary value
+
+                if bval == 0:
+
+                    if (cval % 2) == 0:  # checks to see if it is even
+                        l = l + 1
+                    else:
+                        cval = cval - 1
+                        image[j, k, l] = cval
+                        l = l + 1
+
+                else:  # ELSE FOR bianry value not being 0
+
+                    if (cval % 2) != 0:  # if not even
+                        l = l + 1
+                    else:
+                        cval = cval - 1
+                        image[j, k, l] = cval
+                        l = l + 1
+                imgshape = image.shape[1]
+                if l == 3:
+                    l = 0  # resets value for next iteration
+                    k = k + 1
+                elif k == imgshape:
+                    k = 0  # resets value for next iteration
+                    j = j + 1
+                else:
+                    pass
+
+            cv2.imwrite(fileout, image)
+
+    def decode(self, filein, codec):
+        image = cv2.imread(filein)
+        # print(image) # for debugging
+        flag = True
+
+        # convert into text
+        if codec == 'binary':
+            self.codec = Codec()
+        elif codec == 'caesar':
+            self.codec = CaesarCypher()
+        elif codec == 'huffman':
+            if self.codec == None or self.codec.name != 'huffman':
+                print("A Huffman tree is not set!")
+                flag = False
+        if flag:
+            # your code goes here
+            # you may create an additional method that extract bits from the image array
+            binary_data = ""
+            for col in image:  # color in image
+                for p in col:  # pix
+                    for colorval in p:  # array
+                        cval = format(colorval, "08b")
+                        cval = cval[-1]
+                        binary_data = binary_data + cval  # updates bindata
+
+            # update the data attributes:
+            self.text = self.codec.decode(
+                binary_data)  # self.text gives you the same value as self.codec.decode(binary_data)
+            message = self.text  # techincally self.text is the same as the original self.text and
+            binary_data = self.codec.encode(message + "#")  # same from encode function to run the codec
+            self.binary = binary_data
+            # print(binary_data)   #debugging
+
+    def print(self):
+        if self.text == '':
+            print("The message is not set.")
+        else:
+            print("Text message:", self.text)
+            print("Binary message:", self.binary)
+
+    def show(self, filename):
+        plt.imshow(mpimg.imread(filename))
+        plt.show()
+
+
+if __name__ == '__main__':
+    s = Steganography()
+
+    s.encode('fractal.jpg', 'fractal.png', 'hello', 'binary')
+    # NOTE: binary should have a delimiter and text should not have a delimiter
+    assert s.text == 'hello'
+    assert s.binary == '011010000110010101101100011011000110111100100011'
+
+    s.decode('fractal.png', 'binary')
+    assert s.text == 'hello'
+    assert s.binary == '011010000110010101101100011011000110111100100011'
+    print('Everything works!!!')
+    
+    
+    
+cryptography.py
+# Name- Debi Majumdar
+# Programming assignment 3
+# Date- 02/17/2023
+# cryptography program
+
+from steganography import Steganography
+
+
+def main_menu():
+    s = Steganography()
+    menu = ['Encode a message        - E\n',
+            'Decode a message        - D\n',
+            'Print a message         - P\n',
+            'Show an image           - S\n',
+            'Quit the program        - Q\n']
+    while True:
+        print("\nChoose an operation:")
+        for i in menu: print(i, end='')
+        op = input().upper()
+        if op == 'Q':
+            break
+        elif op == 'S' or op == 'E' or op == 'D':
+            filein = input("Choose an image file:\n")
+        if op == 'E':
+            fileout = input("Choose an output image file:\n")
+            s.encode(filein, fileout, get_message(), get_codec())
+            s.print()
+        elif op == 'D':
+            s.decode(filein, get_codec())
+            s.print()
+        elif op == 'P':
+            s.print()
+        elif op == 'S':
+            s.show(filein)
+
+
+def get_message():
+    message = ''
+    while True:
+        message = input("Please type a message, use only ASCII characters:\n")
+        try:
+            for char in message: code = ord(char)
+            if len(message) > 0: break
+        except:
+            print(f"The message contains not an ASCII character {char}!!!")
+    return message
+
+
+def get_codec():
+    while True:
+        choice = input("\nChoose a codec method or return to the main menu:\n\
+Steganography only               - S\n\
+Steganography & Caesar Cypher    - C\n\
+Steganography & Huffman Codes    - H\n\
+Return to the main menu          - Q\n").upper()
+
+        if choice == 'Q':
+            break
+        elif choice == 'S':
+            return 'binary'
+        elif choice == 'C':
+            return 'caesar'
+        elif choice == 'H':
+            return 'huffman'
+
+
+if __name__ == '__main__':
+    main_menu()
+    
+    
+
+codec.py
+
+# Name- Debi Majumdar
+# Programming assignment 3
+# Date- 02/17/2023
+# codecs program
+
+
+import numpy as np
+
+
+class Codec():
+
+    def __init__(self):
+        self.name = 'binary'
+        self.delimiter = '#'
+
+        # convert text or numbers into binary form
+
+    def encode(self, text):
+        if type(text) == str:
+            return ''.join([format(ord(i), "08b") for i in text])
+        else:
+            print('Format error')
+
+    # convert binary data into text
+    def decode(self, data):
+        binary = []
+        for i in range(0, len(data), 8):
+            byte = data[i: i + 8]
+            if byte == self.encode(self.delimiter):  # you need to find the correct binary form for the delimiter
+                break
+            binary.append(byte)
+        text = ''
+        for byte in binary:
+            text += chr(int(byte, 2))
+        return text
+
+
+class CaesarCypher(Codec):
+    def __init__(self, shift=3):
+        self.name = 'caesar'
+        self.delimiter = '#'
+        self.shift = shift
+        self.chars = 256  # total number of characters
+
+    # convert text into binary form
+    # your code should be similar to the corresponding code used for Codec
+    def encode(self, text):
+        data = ''
+        # your code goes here
+        if type(text) == str:
+            data = ''.join([format(ord(i) + self.shift, "08b") for i in text])
+        else:
+            print('Format error')
+        return data
+
+    # convert binary data into text
+    # your code should be similar to the corresponding code used for Codec
+    def decode(self, data):
+        text = ''
+        # your code goes here
+        diction = []
+        datalength = len(data)
+        for j in range(0, datalength, 8):
+            if data[j: j + 8] == self.encode(self.delimiter):
+                break
+            else:
+                diction.append(data[j:j + 8])
+        for m in diction:
+            text = (text + (chr(int(m, 2) - self.shift)))
+
+        return text
+
+
+# a helper class used for class HuffmanCodes that implements a Huffman tree
+class Node:
+    def __init__(self, freq, symbol, left=None, right=None):
+        self.left = left
+        self.right = right
+        self.freq = freq
+        self.symbol = symbol
+        self.code = ''
+
+
+class HuffmanCodes(Codec):
+    def __init__(self):
+        self.delimiter = "#"
+        self.nodes = None
+        self.name = 'huffman'
+        self.traverse = {}
+        super().__init__()
+        self.encodetree = 0
+        self.decodetree = 0
+
+    # make a Huffman Tree
+    def make_tree(self, data):
+        # make nodes
+        nodes = []
+        for char, freq in data.items():
+            nodes.append(Node(freq, char))
+
+        # assemble the nodes into a tree
+        while len(nodes) > 1:
+            # sort the current nodes by frequency
+            nodes = sorted(nodes, key=lambda x: x.freq)
+
+            # pick two nodes with the lowest frequencies
+            left = nodes[0]
+            right = nodes[1]
+
+            # assign codes
+            left.code = '0'
+            right.code = '1'
+
+            # combine the nodes into a tree
+            root = Node(left.freq + right.freq, left.symbol + right.symbol, left, right)
+
+            # remove the two nodes and add their parent to the list of nodes
+            nodes.remove(left)
+            nodes.remove(right)
+            nodes.append(root)
+
+        return nodes
+
+    # traverse a Huffman tree
+    def traverse_tree(self, node, val):
+        next_val = val + node.code
+        if (node.left):
+            self.traverse_tree(node.left, next_val)
+        if (node.right):
+            self.traverse_tree(node.right, next_val)
+        if self.encodetree == True:  # only works when encode() is run
+            if (not node.left and not node.right):
+                self.traverse[node.symbol] = (next_val)
+        elif self.decodetree == True:  # only works when decode() is run
+            if (not node.left and not node.right):
+                self.traverse[next_val] = (node.symbol)
+
+    # convert text into binary form
+    def encode(self, text):
+        self.encodetree = True  # turns on encode in traverse_tree
+        data = text + self.delimiter
+        # your code goes here
+        # you need to make a tree
+        # and traverse it
+        exitdata = ''
+        t = {}
+        for j in data:
+            if j not in t:
+                t[j] = 0
+            t[j] += 1
+
+        self.nodes = self.make_tree(t)[0]  # sets self.nodes used again in decode()
+        self.traverse_tree(self.nodes, '')  # traverses the tree after making the tree
+
+        for j in range(len(data)):
+            if data[j] in self.traverse:
+                val = data[j]
+                exitdata = exitdata + self.traverse[val]
+                # print(exitdata)
+        self.encodetree = False  # turns off encode in traverse_tree
+        return exitdata
+
+    # convert binary data into text
+    def decode(self, data):
+        self.decodetree = True  # opens for decoding in traverse
+        text = ''
+        t = ''
+        # your code goes here
+        # you need to traverse the tree
+        self.traverse_tree(self.nodes, '')
+        for j in range(len(data)):  # loops til data can fulfil the if statement
+            t = t + data[j]
+            if t in self.traverse:
+                if self.traverse[t] == self.delimiter:
+                    break
+                text += self.traverse[t]
+                t = ''  # resets t
+        self.decodetree = False  # turns of decode process in traverse tree
+        return text
+
+
+# driver program for codec classes
+if __name__ == '__main__':
+    text = 'hello'
+    # text = 'Casino Royale 10:30 Order martini'
+    print('Original:', text)
+
+    c = Codec()
+    binary = c.encode(text + c.delimiter)
+    # NOTE: binary should have a delimiter and text should not have a delimiter
+    print('Binary:', binary)  # should print '011010000110010101101100011011000110111100100011'
+    data = c.decode(binary)
+    print('Text:', data)  # should print 'hello'
+
+    cc = CaesarCypher()
+    binary = cc.encode(text + cc.delimiter)
+    # NOTE: binary should have a delimiter and text should not have a delimiter
+    print('Binary:', binary)
+    data = cc.decode(binary)
+    print('Text:', data)  # should print 'hello'
+
+    h = HuffmanCodes()
+    binary = h.encode(text + h.delimiter)
+    # NOTE: binary should have a delimiter and text should not have a delimiter
+    print('Binary:', binary)
+    data = h.decode(binary)
+    print('Text:', data)  # should print 'hello'
+
+
+
+    # traverse a Huffman tree
+    def traverse_tree(self, node, val):
+        next_val = val + node.code
+        if (node.left):
+            self.traverse_tree(node.left, next_val)
+        if (node.right):
+            self.traverse_tree(node.right, next_val)
+        if (not node.left and not node.right):
+            print(f"{node.symbol}->{next_val}")  # this is for debugging
+            # you need to update this part of the code
+            # or rearrange it so it suits your needs
+
+    # convert text into binary form
+    def encode(self, text):
+        data = ''
+        # your code goes here
+        # you need to make a tree
+        # and traverse it
+        return data
+
+    # convert binary data into text
+    def decode(self, data):
+        text = ''
+        # your code goes here
+        # you need to traverse the tree
+        return text
+
+
+# driver program for codec classes
+if __name__ == '__main__':
+    # text = 'hello'
+    text = 'Casino Royale 10:30 Order martini'
+    print('Original:', text)
+
+    c = Codec()
+    binary = c.encode(text + c.delimiter)
+    # NOTE: binary should have a delimiter and text should not have a delimiter
+    print('Binary:', binary)  # should print
+#'011010000110010101101100011011000110111100100011'
+    data = c.decode(binary)
+    print('Text:', data)  # should print 'hello'
+
+    cc = CaesarCypher()
+    binary = cc.encode(text + cc.delimiter)
+# NOTE: binary should have a delimiter and text should not have a delimiter
+    print('Binary:', binary)
+    data = cc.decode(binary)
+    print('Text:', data)  # should print 'hello'
+
+    h = HuffmanCodes()
+    binary = h.encode(text + h.delimiter)
+# NOTE: binary should have a delimiter and text should not have a delimiter
+    print('Binary:', binary)
+    data = h.decode(binary)
+    print('Text:', data)  # should print 'hello'
